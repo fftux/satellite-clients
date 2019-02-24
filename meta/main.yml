@@ -1,0 +1,12 @@
+galaxy_info:
+  author: chopskxw
+  description: role to configure satellite hosts
+  company: "Red Hat, Inc."
+  license: license (GPLv2, CC-BY, etc)
+  min_ansible_version: 2.4
+  platforms:
+  - name: EL
+    versions:
+    - all
+  galaxy_tags: 
+    - system

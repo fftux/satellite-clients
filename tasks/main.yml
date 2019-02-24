@@ -1,0 +1,77 @@
+---
+# tasks file for satellite-clients
+- name: disable old satellite tools repos
+  rhsm_repository:
+    name: rhel-*-server-satellite-tools-6.*
+    state: disabled
+
+- name: enable satellite tools 6.4 repos
+  rhsm_repository:
+    name: rhel-*-satellite-tools-6.4*
+    state: enabled
+
+- name: install katello-agent (this is provided by the katello repos)
+  yum:
+    name: katello-agent
+    state: latest
+
+- name: start and enable goferd daemon
+  service:
+    name: goferd
+    state: started
+    enabled: true
+
+- name: install tracer
+  yum:
+    name: katello-host-tools-tracer
+    state: latest
+
+- name: initial tracer run
+  command: /sbin/katello-tracer-upload
+
+- name: install puppet
+  yum:
+    name: puppet
+    state: latest
+
+- name:
+  copy:
+    src: /etc/puppet/puppet.conf.rpmsave
+    dest: /etc/puppetlabs/puppet/puppet.conf
+    remote_src: yes
+
+- name:
+  synchronize:
+    src: /var/lib/puppet/ssl
+    dest: /etc/puppetlabs/puppet/
+  delegate_to: "{{ inventory_hostname }}"
+
+- name:
+  replace:
+    path: /etc/puppetlabs/puppet/puppet.conf
+    regexp: /var/lib/puppet
+    replace: /opt/puppetlabs/puppet/cache
+
+- name:
+  replace:
+    path: /etc/puppetlabs/puppet/puppet.conf
+    regexp: /var/log/puppet
+    replace: /var/log/puppetlabs/puppet
+
+- name:
+  replace:
+    path: /etc/puppetlabs/puppet/puppet.conf
+    regexp: /var/run/puppet
+    replace: /var/run/puppetlabs
+
+- name:
+  replace:
+    path: /etc/puppetlabs/puppet/puppet.conf
+    regexp: '$vardir/ssl'
+    replace: /etc/puppetlabs/puppet/ssl
+
+- name: start and enable puppet daemon
+  service:
+    name: puppet
+    state: started
+    enabled: true
