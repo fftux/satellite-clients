@@ -10,7 +10,7 @@
     name: rhel-*-satellite-tools-6.4*
     state: enabled
 
-- name: install katello-agent (this is provided by the katello repos)
+- name: install katello-agent
   yum:
     name: katello-agent
     state: latest
@@ -34,37 +34,61 @@
     name: puppet
     state: latest
 
-- name:
+- name: check to see if /etc/puppet exists
+  stat:
+    path: /etc/puppet
+  register: etc_puppet
+
+- name: copy puppet.conf to new location
   copy:
     src: /etc/puppet/puppet.conf.rpmsave
     dest: /etc/puppetlabs/puppet/puppet.conf
     remote_src: yes
+  when: etc_puppet.stat.exists
 
-- name:
+- name: remove /etc/puppet
+  file:
+    state: absent
+    path: /etc/puppet
+  when: etc_puppet.stat.exists
+
+- name: check to see if /var/lib/puppet exists
+  stat:
+    path: /var/lib/puppet
+  register: var_puppet
+
+- name: copy ssl dir to new location
   synchronize:
     src: /var/lib/puppet/ssl
     dest: /etc/puppetlabs/puppet/
   delegate_to: "{{ inventory_hostname }}"
+  when: var_puppet.stat.exists
 
-- name:
+- name: remove /var/lib/puppet
+  file:
+    state: absent
+    path: /var/lib/puppet
+  when: var_puppet.stat.exists
+
+- name: ensure correct vardir
   replace:
     path: /etc/puppetlabs/puppet/puppet.conf
     regexp: /var/lib/puppet
     replace: /opt/puppetlabs/puppet/cache
 
-- name:
+- name: ensure correct logdir
   replace:
     path: /etc/puppetlabs/puppet/puppet.conf
     regexp: /var/log/puppet
     replace: /var/log/puppetlabs/puppet
 
-- name:
+- name: ensure correct rundir
   replace:
     path: /etc/puppetlabs/puppet/puppet.conf
     regexp: /var/run/puppet
     replace: /var/run/puppetlabs
 
-- name:
+- name: ensure correct ssldir
   replace:
     path: /etc/puppetlabs/puppet/puppet.conf
     regexp: '$vardir/ssl'
