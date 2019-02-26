@@ -25,9 +25,11 @@
   yum:
     name: katello-host-tools-tracer
     state: latest
+  when: ansible_distribution_major_version > '6'
 
 - name: initial tracer run
   command: /sbin/katello-tracer-upload
+  when: ansible_distribution_major_version > '6'
 
 - name: install puppet
   yum:
