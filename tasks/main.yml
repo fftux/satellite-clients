@@ -31,73 +31,76 @@
   command: /sbin/katello-tracer-upload
   when: ansible_distribution_major_version > '6'
 
-- name: install puppet
-  yum:
-    name: puppet
-    state: latest
+- name: puppet block
+  block:
+  - name: install puppet
+    yum:
+      name: puppet
+      state: latest
+  
+  - name: check to see if /etc/puppet exists
+    stat:
+      path: /etc/puppet
+    register: etc_puppet
 
-- name: check to see if /etc/puppet exists
-  stat:
-    path: /etc/puppet
-  register: etc_puppet
+  - name: copy puppet.conf to new location
+    copy:
+      src: /etc/puppet/puppet.conf.rpmsave
+      dest: /etc/puppetlabs/puppet/puppet.conf
+      remote_src: yes
+    when: etc_puppet.stat.exists
 
-- name: copy puppet.conf to new location
-  copy:
-    src: /etc/puppet/puppet.conf.rpmsave
-    dest: /etc/puppetlabs/puppet/puppet.conf
-    remote_src: yes
-  when: etc_puppet.stat.exists
+  - name: remove /etc/puppet
+    file:
+      state: absent
+      path: /etc/puppet
+    when: etc_puppet.stat.exists
 
-- name: remove /etc/puppet
-  file:
-    state: absent
-    path: /etc/puppet
-  when: etc_puppet.stat.exists
+  - name: check to see if /var/lib/puppet exists
+    stat:
+      path: /var/lib/puppet
+    register: var_puppet
 
-- name: check to see if /var/lib/puppet exists
-  stat:
-    path: /var/lib/puppet
-  register: var_puppet
+  - name: copy ssl dir to new location
+    synchronize:
+      src: /var/lib/puppet/ssl
+      dest: /etc/puppetlabs/puppet/
+    delegate_to: "{{ inventory_hostname }}"
+    when: var_puppet.stat.exists
 
-- name: copy ssl dir to new location
-  synchronize:
-    src: /var/lib/puppet/ssl
-    dest: /etc/puppetlabs/puppet/
-  delegate_to: "{{ inventory_hostname }}"
-  when: var_puppet.stat.exists
+  - name: remove /var/lib/puppet
+    file:
+      state: absent
+      path: /var/lib/puppet
+    when: var_puppet.stat.exists
 
-- name: remove /var/lib/puppet
-  file:
-    state: absent
-    path: /var/lib/puppet
-  when: var_puppet.stat.exists
+  - name: ensure correct vardir
+    replace:
+      path: /etc/puppetlabs/puppet/puppet.conf
+      regexp: /var/lib/puppet
+      replace: /opt/puppetlabs/puppet/cache
 
-- name: ensure correct vardir
-  replace:
-    path: /etc/puppetlabs/puppet/puppet.conf
-    regexp: /var/lib/puppet
-    replace: /opt/puppetlabs/puppet/cache
+  - name: ensure correct logdir
+    replace:
+      path: /etc/puppetlabs/puppet/puppet.conf
+      regexp: /var/log/puppet
+      replace: /var/log/puppetlabs/puppet
 
-- name: ensure correct logdir
-  replace:
-    path: /etc/puppetlabs/puppet/puppet.conf
-    regexp: /var/log/puppet
-    replace: /var/log/puppetlabs/puppet
+  - name: ensure correct rundir
+    replace:
+      path: /etc/puppetlabs/puppet/puppet.conf
+      regexp: /var/run/puppet
+      replace: /var/run/puppetlabs
 
-- name: ensure correct rundir
-  replace:
-    path: /etc/puppetlabs/puppet/puppet.conf
-    regexp: /var/run/puppet
-    replace: /var/run/puppetlabs
+  - name: ensure correct ssldir
+    replace:
+      path: /etc/puppetlabs/puppet/puppet.conf
+      regexp: '$vardir/ssl'
+      replace: /etc/puppetlabs/puppet/ssl
 
-- name: ensure correct ssldir
-  replace:
-    path: /etc/puppetlabs/puppet/puppet.conf
-    regexp: '$vardir/ssl'
-    replace: /etc/puppetlabs/puppet/ssl
-
-- name: start and enable puppet daemon
-  service:
-    name: puppet
-    state: started
-    enabled: true
+  - name: start and enable puppet daemon
+    service:
+      name: puppet
+      state: started
+      enabled: true
+  when: ansible_machine != s390x
